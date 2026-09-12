@@ -329,10 +329,10 @@ function reducer(state: State, action: Action): State {
       let next: State = {
         ...state,
         terminal: [
+          ...state.terminal,
           term("in", `› ${action.raw}`),
           ...parsed.result.lines.map((line) => term(parsed.result.ok ? "out" : "err", line)),
-          ...state.terminal,
-        ].slice(0, 200),
+        ].slice(-200),
       };
 
       const effect = parsed.effect;
