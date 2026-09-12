@@ -47,7 +47,9 @@ export function Login() {
               style={{ marginTop: 8 }}
               value={handle}
               onChange={(e) => setHandle(e.target.value)}
-              autoComplete="username"
+              autoComplete="off"
+              autoCapitalize="off"
+              spellCheck={false}
             />
           </label>
           <label className="kicker">
@@ -59,7 +61,7 @@ export function Login() {
               value={key}
               onChange={(e) => setKey(e.target.value)}
               placeholder="coexist"
-              autoComplete="current-password"
+              autoComplete="off"
             />
           </label>
           {error && (
