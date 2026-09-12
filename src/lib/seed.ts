@@ -489,7 +489,7 @@ export const NODES: RemoteNode[] = [
     kind: "partner",
     city: "South San Francisco",
     lat: 37.65,
-    lon: -122.41,
+    lon: -124.6,
     status: "online",
     latencyMs: 36,
     cpu: 48,

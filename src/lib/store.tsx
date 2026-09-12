@@ -132,7 +132,7 @@ function reducer(state: State, action: Action): State {
     }
     case "approve": {
       const p = paymentById(state, action.id);
-      if (!p || p.status === "settled" || p.status === "rejected") return state;
+      if (!p || p.status === "settled" || p.status === "rejected" || p.status === "approved") return state;
       return {
         ...state,
         payments: state.payments.map((x) => (x.id === action.id ? { ...x, status: "approved" } : x)),
@@ -142,7 +142,7 @@ function reducer(state: State, action: Action): State {
     }
     case "hold": {
       const p = paymentById(state, action.id);
-      if (!p) return state;
+      if (!p || p.status === "held" || p.status === "settled" || p.status === "rejected") return state;
       return {
         ...state,
         payments: state.payments.map((x) => (x.id === action.id ? { ...x, status: "held" } : x)),
@@ -152,7 +152,7 @@ function reducer(state: State, action: Action): State {
     }
     case "reject": {
       const p = paymentById(state, action.id);
-      if (!p) return state;
+      if (!p || p.status === "rejected") return state;
       return {
         ...state,
         payments: state.payments.map((x) => (x.id === action.id ? { ...x, status: "rejected" } : x)),
@@ -162,7 +162,7 @@ function reducer(state: State, action: Action): State {
     }
     case "freeze": {
       const a = state.accounts.find((x) => x.id === action.id);
-      if (!a) return state;
+      if (!a || a.status === "frozen") return state;
       return {
         ...state,
         accounts: state.accounts.map((x) => (x.id === action.id ? { ...x, status: "frozen" } : x)),
@@ -177,7 +177,7 @@ function reducer(state: State, action: Action): State {
     }
     case "thaw": {
       const a = state.accounts.find((x) => x.id === action.id);
-      if (!a) return state;
+      if (!a || a.status !== "frozen") return state;
       return {
         ...state,
         accounts: state.accounts.map((x) => (x.id === action.id ? { ...x, status: "active" } : x)),
@@ -251,12 +251,15 @@ function reducer(state: State, action: Action): State {
       };
     }
     case "connect":
+      if (state.connectedNodeId === action.id) return state;
       return {
         ...state,
         connectedNodeId: action.id,
-        nodes: state.nodes.map((n) =>
-          n.id === action.id ? { ...n, sessions: n.sessions + 1 } : n,
-        ),
+        nodes: state.nodes.map((n) => {
+          if (n.id === action.id) return { ...n, sessions: n.sessions + 1 };
+          if (n.id === state.connectedNodeId) return { ...n, sessions: Math.max(0, n.sessions - 1) };
+          return n;
+        }),
         audit: withAudit(state, "CONNECT", action.id, "remote session"),
         toasts: withToast(state, "ok", `Attached ${action.id}`),
       };

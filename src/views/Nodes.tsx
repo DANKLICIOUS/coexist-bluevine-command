@@ -10,23 +10,44 @@ function project(lat: number, lon: number) {
 function NodeMap({ nodes, active, onPick }: { nodes: RemoteNode[]; active: string | null; onPick: (id: string) => void }) {
   return (
     <svg viewBox="0 0 640 360" style={{ width: "100%", height: "auto" }}>
-      <rect width="640" height="360" fill="rgba(8,18,32,0.4)" rx="16" />
+      <defs>
+        <radialGradient id="mapGlow" cx="50%" cy="45%" r="55%">
+          <stop offset="0%" stopColor="rgba(61,139,255,0.16)" />
+          <stop offset="100%" stopColor="rgba(61,139,255,0)" />
+        </radialGradient>
+      </defs>
+      <rect width="640" height="360" fill="url(#mapGlow)" rx="16" />
       <path
-        d="M70 80 L150 70 L230 90 L310 60 L420 70 L520 90 L560 130 L530 190 L500 250 L420 280 L330 300 L240 290 L160 260 L90 210 L70 140 Z"
-        fill="none"
-        stroke="rgba(61,139,255,0.28)"
+        d="M92 118 L148 92 L214 102 L268 78 L338 70 L412 86 L478 96 L534 118 L558 156 L536 198 L502 236 L448 268 L372 292 L298 300 L228 286 L168 254 L122 210 L96 164 Z"
+        fill="rgba(61,139,255,0.05)"
+        stroke="rgba(61,139,255,0.32)"
         strokeWidth="1.4"
       />
-      {nodes.map((n) => {
+      <path
+        d="M478 236 L512 262 L498 284 L468 270 Z"
+        fill="rgba(61,139,255,0.05)"
+        stroke="rgba(61,139,255,0.32)"
+        strokeWidth="1.2"
+      />
+      {nodes.map((n, i) => {
         const { x, y } = project(n.lat, n.lon);
         const hot = n.id === active;
         const color =
           n.status === "online" ? "#7cff9a" : n.status === "degraded" ? "#ffb020" : n.status === "rebooting" ? "#3d8bff" : "#ff4d6a";
+        const right = n.lon > -95;
+        const down = i % 2 === 0;
         return (
           <g key={n.id} onClick={() => onPick(n.id)} style={{ cursor: "pointer" }}>
-            <circle cx={x} cy={y} r={hot ? 10 : 6} fill={color} opacity={0.9} />
-            <circle cx={x} cy={y} r={hot ? 18 : 12} fill="none" stroke={color} opacity={0.35} />
-            <text x={x + 12} y={y - 8} fill="#e8f1ff" fontSize="11" fontFamily="IBM Plex Mono, monospace">
+            <circle cx={x} cy={y} r={hot ? 10 : 6} fill={color} opacity={0.95} />
+            <circle cx={x} cy={y} r={hot ? 18 : 13} fill="none" stroke={color} opacity={0.35} />
+            <text
+              x={right ? x - 12 : x + 12}
+              y={y + (down ? 16 : -10)}
+              fill="#e8f1ff"
+              fontSize="11"
+              fontFamily="IBM Plex Mono, monospace"
+              textAnchor={right ? "end" : "start"}
+            >
               {n.id}
             </text>
           </g>
@@ -106,7 +127,14 @@ export function Nodes() {
           </thead>
           <tbody>
             {store.nodes.map((n) => (
-              <tr key={n.id}>
+              <tr
+                key={n.id}
+                style={
+                  n.id === store.connectedNodeId
+                    ? { background: "rgba(61,139,255,0.08)" }
+                    : undefined
+                }
+              >
                 <td>
                   {n.name}
                   <div className="mono dim">{n.id}</div>
