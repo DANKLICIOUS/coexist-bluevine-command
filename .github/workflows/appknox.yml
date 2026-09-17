@@ -12,7 +12,7 @@
 # Instructions:
 #
 # 1. In your repository settings, navigate to 'Secrets' and click on 'New repository secret.' Name the
-#    secret APPKNOX_ACCESS_TOKEN and paste your appknox user token into the value field. If you don't have a appknox token
+#    secret APPKNOX_ACCESS_TOKEN and paste your Appknox user token into the value field. If you don't have an Appknox token
 #    or need to generate a new one for GitHub, visit the Appknox Platform, go to Account Settings->Developer Settings
 #    and create a token labeled GitHub
 #
@@ -29,6 +29,12 @@ on:
 jobs:
   appknox:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    env:
+      APPKNOX_BUILD_COMMAND: ./gradlew build
+      APPKNOX_ARTIFACT_PATH: app/build/outputs/apk/debug/app-debug.apk
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -38,7 +44,12 @@ jobs:
         env:
           APPKNOX_ACCESS_TOKEN: ${{ secrets.APPKNOX_ACCESS_TOKEN }}
         run: |
-          if [ -f gradlew ]; then
+          module_dir="${APPKNOX_ARTIFACT_PATH%%/build/*}"
+          if [ "$module_dir" = "$APPKNOX_ARTIFACT_PATH" ]; then
+            module_dir=""
+          fi
+
+          if [ -f gradlew ] && [ -n "$module_dir" ] && [ -d "$module_dir" ] && { [ -f "$module_dir/build.gradle" ] || [ -f "$module_dir/build.gradle.kts" ] || [ -f "$module_dir/src/main/AndroidManifest.xml" ]; }; then
             echo "has_mobile_build=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_mobile_build=false" >> "$GITHUB_OUTPUT"
@@ -61,19 +72,20 @@ jobs:
 
       - name: Build the app
         if: ${{ steps.detect.outputs.has_mobile_build == 'true' && steps.detect.outputs.has_token == 'true' }}
-        run: ./gradlew build                                         # Update this to build your Android or iOS application
+        run: ${{ env.APPKNOX_BUILD_COMMAND }}                        # Update this Android build command so it produces APPKNOX_ARTIFACT_PATH
 
       - name: Appknox GitHub action
+        id: appknox_scan
         if: ${{ steps.detect.outputs.has_mobile_build == 'true' && steps.detect.outputs.has_token == 'true' }}
         uses: appknox/appknox-github-action@b7d2bfb2321d5544e97bffcba48557234ab953a4
         with:
           appknox_access_token: ${{ secrets.APPKNOX_ACCESS_TOKEN }}
-          file_path: app/build/outputs/apk/debug/app-debug.apk        # Specify the path to your .ipa or .apk here
+          file_path: ${{ env.APPKNOX_ARTIFACT_PATH }}                # Update this Android artifact path to the APK produced by APPKNOX_BUILD_COMMAND
           risk_threshold: MEDIUM                                      # Update this to desired risk threshold [LOW, MEDIUM, HIGH, CRITICAL]
           sarif: Enable
 
       - name: Upload SARIF to GHAS
-        if: ${{ always() && steps.detect.outputs.has_mobile_build == 'true' && steps.detect.outputs.has_token == 'true' && hashFiles('report.sarif') != '' }}
+        if: ${{ steps.detect.outputs.has_mobile_build == 'true' && steps.detect.outputs.has_token == 'true' && steps.appknox_scan.outcome == 'success' && hashFiles('report.sarif') != '' }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: report.sarif
