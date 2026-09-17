@@ -33,13 +33,38 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Detect Appknox scan prerequisites
+        id: detect
+        env:
+          APPKNOX_ACCESS_TOKEN: ${{ secrets.APPKNOX_ACCESS_TOKEN }}
+        run: |
+          if [ -f gradlew ]; then
+            echo "has_mobile_build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_mobile_build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ -n "$APPKNOX_ACCESS_TOKEN" ]; then
+            echo "has_token=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_token=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip unsupported Appknox scan
+        if: ${{ steps.detect.outputs.has_mobile_build != 'true' || steps.detect.outputs.has_token != 'true' }}
+        run: |
+          echo "Skipping Appknox scan because this repository does not contain the expected Android build inputs or APPKNOX_ACCESS_TOKEN is not configured."
+
       - name: Grant execute permission for gradlew
+        if: ${{ steps.detect.outputs.has_mobile_build == 'true' && steps.detect.outputs.has_token == 'true' }}
         run: chmod +x gradlew
 
       - name: Build the app
+        if: ${{ steps.detect.outputs.has_mobile_build == 'true' && steps.detect.outputs.has_token == 'true' }}
         run: ./gradlew build                                         # Update this to build your Android or iOS application
 
       - name: Appknox GitHub action
+        if: ${{ steps.detect.outputs.has_mobile_build == 'true' && steps.detect.outputs.has_token == 'true' }}
         uses: appknox/appknox-github-action@b7d2bfb2321d5544e97bffcba48557234ab953a4
         with:
           appknox_access_token: ${{ secrets.APPKNOX_ACCESS_TOKEN }}
@@ -48,7 +73,7 @@ jobs:
           sarif: Enable
 
       - name: Upload SARIF to GHAS
-        if: always()
+        if: ${{ always() && steps.detect.outputs.has_mobile_build == 'true' && steps.detect.outputs.has_token == 'true' && hashFiles('report.sarif') != '' }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: report.sarif
